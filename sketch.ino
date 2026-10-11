@@ -359,7 +359,7 @@ public:
     void smartRecovery();
     void verifyRelayStates(bool force = false);
     void performTargetedRecovery();
-    void restartAPIfNeeded(bool forceRestart = false);
+    void restartAPIfNeeded(bool forceRestart);
 private:
     unsigned long lastFullHealthCheck = 0;
     unsigned long lastWiFiReconfigure = 0;
@@ -1089,11 +1089,9 @@ void performMemoryCleanup() {
 }
 
 void cleanupStaleResources() {
-    unsigned long now = millis();
     if (!scanInProgress && WiFi.scanComplete() == WIFI_SCAN_RUNNING) {
         WiFi.scanDelete();
     }
-    (void)now;
     performMemoryCleanup();
 }
 
@@ -1213,7 +1211,7 @@ const char index_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <a href="/gpio">GPIO</a>
 <a href="/system">System</a>
 </nav>
-<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span></div>
+<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span><span id="date" style="font-size:11px;opacity:.85;margin-left:6px;white-space:nowrap">--/--/--</span></div>
 </header>
 <main>
 <p class="ptitle">Relay Controls &amp; Schedules</p>
@@ -1224,7 +1222,7 @@ const char index_html[] PROGMEM = R"raw(<!DOCTYPE html>
 const D=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function toast(m,ok=true){const t=document.getElementById('toast');t.textContent=m;t.className='show '+(ok?'ok':'er');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3000);}
-function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}}).catch(()=>{});}
+function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const de=document.getElementById('date');if(de)de.textContent=(d.weekday?d.weekday+' ':'')+(d.date||'--/--/--');const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}}).catch(()=>{});}
 setInterval(tick,1000);tick();
 
 const NS=8;
@@ -1542,7 +1540,7 @@ const char wifi_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <a href="/gpio">GPIO</a>
 <a href="/system">System</a>
 </nav>
-<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span></div>
+<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span><span id="date" style="font-size:11px;opacity:.85;margin-left:6px;white-space:nowrap">--/--/--</span></div>
 </header>
 <main>
 <p class="ptitle">WiFi Station Settings</p>
@@ -1596,7 +1594,7 @@ const char wifi_html[] PROGMEM = R"raw(<!DOCTYPE html>
 </style>
 <script>
 function toast(m,ok=true){const t=document.getElementById('toast');t.textContent=m;t.className='show '+(ok?'ok':'er');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3000);}
-function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}}).catch(()=>{});}
+function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const de=document.getElementById('date');if(de)de.textContent=(d.weekday?d.weekday+' ':'')+(d.date||'--/--/--');const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}}).catch(()=>{});}
 setInterval(tick,1000);tick();
 
 function updateStaButton(enabled) {
@@ -1782,7 +1780,7 @@ const char ntp_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <a href="/gpio">GPIO</a>
 <a href="/system">System</a>
 </nav>
-<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span></div>
+<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span><span id="date" style="font-size:11px;opacity:.85;margin-left:6px;white-space:nowrap">--/--/--</span></div>
 </header>
 <main>
 <p class="ptitle">Time &amp; NTP Settings</p>
@@ -1790,7 +1788,7 @@ const char ntp_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <div id="timeStatus" class="alert ai" style="display:none;margin-bottom:12px"></div>
 <div class="fg">
 <label>Timezone</label>
-<select id="tz" onchange="tzChanged()">
+<select id="tz">
 <option value="">Loading&hellip;</option>
 </select>
 <small id="tzInfo">Auto-DST handled by firmware. Transitions detected within 5 seconds.</small>
@@ -1818,7 +1816,7 @@ const char ntp_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <script>
 function toast(m,ok=true){const t=document.getElementById('toast');t.textContent=m;t.className='show '+(ok?'ok':'er');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3000);}
 function fmtOff(s){const h=Math.floor(Math.abs(s)/3600);const m=Math.floor((Math.abs(s)%3600)/60);return (s<0?'-':'+')+h+(m?':'+String(m).padStart(2,'0'):'');}
-function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}updateTimeStatus(d);}).catch(()=>{});}
+function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const de=document.getElementById('date');if(de)de.textContent=(d.weekday?d.weekday+' ':'')+(d.date||'--/--/--');const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}updateTimeStatus(d);}).catch(()=>{});}
 function updateTimeStatus(d){
   const s=document.getElementById('timeStatus');
   s.style.display='block';
@@ -1905,7 +1903,6 @@ function updateTzInfo(cfg){
   }
   document.getElementById('gmt').value = cfg.gmtOffset;
 }
-function tzChanged(){}
 function save(){
   const h=parseInt(document.getElementById('shi').value);
   if(h<1||h>24){toast('Sync interval must be 1\u201324 h',false);return;}
@@ -1984,7 +1981,7 @@ const char ap_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <a href="/gpio">GPIO</a>
 <a href="/system">System</a>
 </nav>
-<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span></div>
+<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span><span id="date" style="font-size:11px;opacity:.85;margin-left:6px;white-space:nowrap">--/--/--</span></div>
 </header>
 <main>
 <p class="ptitle">Access Point Settings</p>
@@ -2016,7 +2013,7 @@ const char ap_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <div id="toast"></div>
 <script>
 function toast(m,ok=true){const t=document.getElementById('toast');t.textContent=m;t.className='show '+(ok?'ok':'er');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3000);}
-function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}}).catch(()=>{});}
+function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const de=document.getElementById('date');if(de)de.textContent=(d.weekday?d.weekday+' ':'')+(d.date||'--/--/--');const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}}).catch(()=>{});}
 setInterval(tick,1000);tick();
 fetch('/api/ap').then(r=>r.json()).then(d=>{
   document.getElementById('ssid').value=d.ap_ssid||'';
@@ -2055,7 +2052,7 @@ const char gpio_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <a href="/gpio" class="cur">GPIO</a>
 <a href="/system">System</a>
 </nav>
-<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span></div>
+<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span><span id="date" style="font-size:11px;opacity:.85;margin-left:6px;white-space:nowrap">--/--/--</span></div>
 </header>
 <main>
 <p class="ptitle">GPIO Pin Configuration</p>
@@ -2101,7 +2098,7 @@ const char gpio_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <div id="toast"></div>
 <script>
 function toast(m,ok=true){const t=document.getElementById('toast');t.textContent=m;t.className='show '+(ok?'ok':'er');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3000);}
-function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}}).catch(()=>{});}
+function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const de=document.getElementById('date');if(de)de.textContent=(d.weekday?d.weekday+' ':'')+(d.date||'--/--/--');const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}}).catch(()=>{});}
 setInterval(tick,1000);tick();
 // change gpio
 const DEFAULT_PINS = [23,32,33,25,26,27,14,13,1,3,19,18,5,4,2,15];
@@ -2270,7 +2267,7 @@ const char system_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <a href="/gpio">GPIO</a>
 <a href="/system" class="cur">System</a>
 </nav>
-<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span></div>
+<div class="hdr-r"><span class="dot wd"></span><span class="dot td"></span>&nbsp;<span id="clk">--:--:--</span><span id="date" style="font-size:11px;opacity:.85;margin-left:6px;white-space:nowrap">--/--/--</span></div>
 </header>
 <main>
 <p class="ptitle">System Information &amp; Settings</p>
@@ -2312,7 +2309,7 @@ const char system_html[] PROGMEM = R"raw(<!DOCTYPE html>
 <div id="toast"></div>
 <script>
 function toast(m,ok=true){const t=document.getElementById('toast');t.textContent=m;t.className='show '+(ok?'ok':'er');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3000);}
-function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}}).catch(()=>{});}
+function tick(){fetch('/api/time').then(r=>r.json()).then(d=>{document.getElementById('clk').textContent=d.time||'--:--:--';const de=document.getElementById('date');if(de)de.textContent=(d.weekday?d.weekday+' ':'')+(d.date||'--/--/--');const w=document.querySelector('.wd'),t=document.querySelector('.td');if(w)w.className='dot '+(d.wifi?'g':'r');if(t){let tc='y';if(d.timeSource==='ntp')tc='g';else if(d.timeSource==='browser')tc='b';else if(d.timeSource==='rtc')tc='b';else tc='y';t.className='dot '+tc;}}).catch(()=>{});}
 setInterval(tick,1000);tick();
 function fmtUp(s){
   const d = Math.floor(s / 86400);
@@ -3549,6 +3546,8 @@ void handleRelayName() {
 
 void handleGetTime() {
     String ts = "--:--:--";
+    String ds = "--/--/--";
+    String ws = "";
     uint64_t utcEp = getCurrentEpoch();
     if (utcEp > MIN_UNIX_TIME_64) {
         uint64_t localEp = getLocalEpoch(utcEp);
@@ -3557,6 +3556,12 @@ void handleGetTime() {
             char buf[12];
             sprintf(buf, "%02d:%02d:%02d", t->tm_hour, t->tm_min, t->tm_sec);
             ts = buf;
+            char dbuf[12];
+            sprintf(dbuf, "%02d/%02d/%02d", t->tm_mon + 1, t->tm_mday,
+                    (t->tm_year + 1900) % 100);
+            ds = dbuf;
+            static const char* WD[] = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+            if (t->tm_wday >= 0 && t->tm_wday <= 6) ws = WD[t->tm_wday];
         }
     }
     String timeSourceStr = "none";
@@ -3569,7 +3574,7 @@ void handleGetTime() {
     int32_t dstOff = (utcEp > MIN_UNIX_TIME_64) ? currentDstOffset(utcEp) : 0;
     bool dstOn = (dstOff != 0);
     String tzName = String(sysConfig.tz_name);
-    String resp = "{\"time\":\"" + ts + "\",\"wifi\":" +
+    String resp = "{\"time\":\"" + ts + "\",\"date\":\"" + ds + "\",\"weekday\":\"" + ws + "\",\"wifi\":" +
                   String(wifiConnected ? "true" : "false") + ",\"ntp\":" +
                   String((timeSource == TIME_SOURCE_NTP) ? "true" : "false") +
                   ",\"timeSource\":\"" + timeSourceStr +
