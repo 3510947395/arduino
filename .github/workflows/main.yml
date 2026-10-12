@@ -1,6 +1,9 @@
 name: Build ESP32 Firmware
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -20,10 +23,10 @@ jobs:
           arduino-cli core install esp32:esp32
 
       - name: Compile Sketch
-        run: arduino-cli compile --fqbn esp32:esp32:esp32 .
+        run: arduino-cli compile --fqbn esp32:esp32:esp32 . --output-dir ./out
 
       - name: Upload Firmware
         uses: actions/upload-artifact@v4
         with:
           name: ESP32-Firmware
-          path: '**/*.bin'
+          path: ./out/*.bin
