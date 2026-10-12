@@ -26,4 +26,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ESP32-Firmware
-          path: build/esp32.esp32.esp32/*.bin
+          path: '**/*.bin'
